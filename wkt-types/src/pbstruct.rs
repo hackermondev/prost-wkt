@@ -384,6 +384,34 @@ impl<'de> Deserialize<'de> for Value {
     }
 }
 
+#[cfg(feature = "sql")]
+impl<'r, DB: sqlx::Database> sqlx::Decode<'r, DB> for Value
+where
+    serde_json::Value: sqlx::Decode<'r, DB>
+{
+    fn decode(
+        value: <DB as sqlx::Database>::ValueRef<'r>,
+    ) -> Result<Value, sqlx::error::BoxDynError> {
+        let value = <serde_json::Value as sqlx::Decode<DB>>::decode(value)?;
+        Ok(serde_json::from_value(value)?)
+    }
+}
+
+#[cfg(feature = "sql")]
+impl<'r, DB: sqlx::Database> sqlx::Encode<'r, DB> for Value
+where
+    serde_json::Value: sqlx::Encode<'r, DB>
+{
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as sqlx::Database>::ArgumentBuffer<'r>,
+    ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
+        let value = serde_json::to_value(self)?;
+        <serde_json::Value as sqlx::Encode<DB>>::encode_by_ref(&value, buf)
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use crate::pbstruct::*;
