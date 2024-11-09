@@ -411,6 +411,16 @@ where
     }
 }
 
+#[cfg(feature = "sql")]
+impl<DB: sqlx::Database> sqlx::Type<DB> for Value
+where
+    serde_json::Value: sqlx::Type<DB>
+{
+    fn type_info() -> <DB as sqlx::Database>::TypeInfo {
+        <serde_json::Value as sqlx::Type<DB>>::type_info()
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
