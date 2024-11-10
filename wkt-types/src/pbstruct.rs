@@ -5,7 +5,10 @@ use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::fmt;
 
-include!(concat!(env!("OUT_DIR"), "/pbstruct/google.protobuf.rs"));
+include!(concat!("build/google.protobuf.rs"));
+
+
+
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ValueError {
@@ -66,7 +69,21 @@ impl From<NullValue> for Value {
 
 impl From<f64> for Value {
     fn from(num: f64) -> Self {
-        let kind = Some(value::Kind::NumberValue(num));
+        let kind = Some(value::Kind::FloatValue(num));
+        Value { kind }
+    }
+}
+
+impl From<u64> for Value {
+    fn from(num: u64) -> Self {
+        let kind = Some(value::Kind::UIntValue(num));
+        Value { kind }
+    }
+}
+
+impl From<i64> for Value {
+    fn from(num: i64) -> Self {
+        let kind = Some(value::Kind::IntValue(num));
         Value { kind }
     }
 }
@@ -76,12 +93,44 @@ impl TryFrom<Value> for f64 {
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         match value.kind {
-            Some(value::Kind::NumberValue(num)) => Ok(num),
+            Some(value::Kind::FloatValue(num)) => Ok(num),
             Some(_other) => Err(ValueError::new(
                 "Cannot convert to f64 because this is not a ValueNumber.",
             )),
             _ => Err(ValueError::new(
                 "Conversion to f64 failed because value is empty!",
+            )),
+        }
+    }
+}
+
+impl TryFrom<Value> for i64 {
+    type Error = ValueError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        match value.kind {
+            Some(value::Kind::IntValue(num)) => Ok(num),
+            Some(_other) => Err(ValueError::new(
+                "Cannot convert to f64 because this is not a ValueNumber.",
+            )),
+            _ => Err(ValueError::new(
+                "Conversion to f64 failed because value is empty!",
+            )),
+        }
+    }
+}
+
+impl TryFrom<Value> for u64 {
+    type Error = ValueError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        match value.kind {
+            Some(value::Kind::UIntValue(num)) => Ok(num),
+            Some(_other) => Err(ValueError::new(
+                "Cannot convert to u64 because this is not a ValueNumber.",
+            )),
+            _ => Err(ValueError::new(
+                "Conversion to u64 failed because value is empty!",
             )),
         }
     }
@@ -213,7 +262,9 @@ impl Serialize for Value {
         S: Serializer,
     {
         match &self.kind {
-            Some(value::Kind::NumberValue(num)) => serializer.serialize_f64(*num),
+            Some(value::Kind::FloatValue(num)) => serializer.serialize_f64(*num),
+            Some(value::Kind::IntValue(num)) => serializer.serialize_i64(*num),
+            Some(value::Kind::UIntValue(num)) => serializer.serialize_u64(*num),
             Some(value::Kind::StringValue(string)) => serializer.serialize_str(string),
             Some(value::Kind::BoolValue(boolean)) => serializer.serialize_bool(*boolean),
             Some(value::Kind::NullValue(_)) => serializer.serialize_none(),
@@ -315,14 +366,14 @@ impl<'de> Deserialize<'de> for Value {
             where
                 E: de::Error,
             {
-                Ok(Value::from(value as f64))
+                Ok(Value::from(value))
             }
 
             fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
             where
                 E: de::Error,
             {
-                Ok(Value::from(value as f64))
+                Ok(Value::from(value))
             }
 
             fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
